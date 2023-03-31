@@ -1,0 +1,109 @@
+model {
+
+#Likelihood
+# Based on the sensitivity analysis,
+# a FPRM with 5df for baseline and 2df for a continuous age was chosen.
+
+# For now we assumed a constant age effect over time
+
+# all splines variabels and their derivatives (_rcs*, _d_rcs*) for likelihood are created beforehand and are in the data set
+
+# Note that:
+# rate[i] is a population mortality for each individual’s age group, sex, year and SLA, 
+# datarows = number of data rows (individual-level observations)
+# Nsla is the number of all SLAs (478 in this study)
+# sumNumNeigh is the number of all neigbours, for example 2724 - Susanna's adj matrix, 2408 - our adj matrix)
+
+K <- 10000
+
+for(i in 1:datarows) {
+
+# Use zeros trick 
+zeros[i] <- 0
+zeros[i] ~ dpois(phi[i])
+phi[i] <- - lnL[i] + K
+
+
+# write linear predictor (log cumulative hazard)
+
+eta[i] <- gamma[1] + gamma[2]*rcs1[i] + gamma[3]*rcs2[i] +gamma[4]*rcs3[i] + gamma[5]*rcs4[i] + gamma[6]*rcs5[i] + beta[1]*cage1[i]
++ beta[2]*cage2[i] + u[grid[i]] + v[grid[i]]
+
+# write derivative of the linear predictor
+
+dsp[i] <-gamma[2]*drcs1[i] + gamma[3]*drcs2[i] + gamma[4]*drcs3[i] + gamma[5]*drcs4[i] + gamma[6]*drcs5[i]
+
+# write excess hazard 
+# we use a trick to avoid zero excess hazard
+
+lambda[i] <- (1/t[i])*max(dsp[i]*exp(eta[i]),0.00001) 
+
+# write relative survival 
+r[i] <- exp(-max(exp(eta[i]),0.00001))
+
+lnL[i]<- d[i]*log(rate[i] + lambda[i]) + log(r[i])
+
+}
+
+
+# ICAR prior distribution for spatial random effects:
+
+# Here from WinBugs info:
+
+# adj[] is a vector of all neigbours for each SLA, 
+## make sure that it is sorted by SLA
+
+# weights[] A vector the same length as adj[] giving unnormalised weights associated with each pair of areas.
+## a common approach is to use weights = 1 for all neigbours
+## For the CAR model described above, taking Cij = 1 (equivalently Wij = 1/ ni) if areas i and j are neighbours and
+## 0 otherwise, gives a vector of 1's for weights[].
+
+# num[] is a vector of the number of neigbours for each SLA
+## make sure that it is sorted by SLA as well
+
+
+# tauu is a scalar argument representing the precision (inverse variance) parameter of the Gaussian CAR prior
+## i.e. in terms of Besag's notation it is k
+
+
+u[1:Nsla] ~ car.normal(adj[], weights[], num[], tauu)
+for (k in 1:sumNumNeigh) {weights[k]<- 1 }
+
+#Normal prior for uncorrelated heterogeneity term
+
+## In WinBugs, tau in dnorm represents presision, i.e. 1/ variance
+## We also want weakly informative, i.e. with zero mean and large variance
+
+for (i in 1:Nsla) {
+v[i] ~ dnorm(0,tauv)
+smoothed[i]<-u[i]+v[i]
+RERsmoothed[i]<-exp(smoothed[i])
+}
+
+
+# Other priors (gamma on prior):
+
+tauu ~ dgamma(0.5, 0.0005) 
+
+tauv ~ dgamma(0.5, 0.0005) 
+
+
+varv <- 1/tauv 
+
+
+
+for(j in 1:2){
+beta[j] ~ dnorm(0,0.001)
+}
+for(j in 1:6){
+gamma[j] ~ dnorm(0,0.001)
+}
+
+
+## It is needed to check correlations between the areas
+
+var_u_marg<-sd(u[])*sd(u[])
+fracspatial<- var_u_marg /( var_u_marg + varv)
+
+
+}
