@@ -1,3 +1,7 @@
+To run WinBugs within Stata, please follow the instructions here:
+https://www.stata-press.com/data/bas.html
+
+
 Name of the project: 
 
 Geographical patterns of the loss in life expectancy and 
