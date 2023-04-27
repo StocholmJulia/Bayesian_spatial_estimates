@@ -12,7 +12,7 @@ model {
 # rate[i] is a population mortality for each individual’s age group, sex, year and SLA, 
 # datarows = number of data rows (individual-level observations)
 # Nsla is the number of all SLAs (478 in this study)
-# sumNumNeigh is the number of all neigbours, for example 2724 - Susanna's adj matrix, 2408 - our adj matrix)
+# sumNumNeigh is the number of all neigbours
 
 K <- 10000
 
